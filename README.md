@@ -1,10 +1,7 @@
-This repo is a fork of this great project for our needs, which include (only for android for now):
-- Analytics support.
-- Receive GPS locations depending on notifications received.
-- Check for Google Play Services availability and usability.
-
-It also includes pull requests from other users to fix some problems and support for deliver multiple notifications to the webview,
-which is not supported by the original plugin (we'll post a pull request in the coming months, just in case someone wil be interested on it).
+This repo is a fork of this great project for our needs, which include:
+- Analytics support (android).
+- Receive GPS locations depending on notifications received (ios and android).
+- Check for Google Play Services availability and usability (android).
 
 ---
 
