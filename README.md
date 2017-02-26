@@ -3,6 +3,42 @@ This repo is a fork of this great project for our needs, which include:
 - Receive GPS locations depending on notifications received (ios and android).
 - Check for Google Play Services availability and usability (android).
 
+### Notes for iOS (10):
+- Configure your project appropiately:
+ - Add firebase to your project: https://firebase.google.com/docs/ios/setup#add_firebase_to_your_app
+   - or just cordova/ionic plugin add https://...
+ - Configure the SSL certificates for Apple: https://firebase.google.com/docs/cloud-messaging/ios/certs and don't forget to upload them to firebase (follow all the steps!).
+ - If not done automatically, place the GoogleService-Info.plist file under platforms/ios/<	YOUR PROJECT>/Resources/
+- In XCode:
+ - FirebaseAppDelegateProxyEnabled = NO to your *.plist file. Notes:
+    
+    - This implies to use setAPNSToken() in the iOS code (we do).
+    - FIRInstanceIDAPNSTokenTypeUnknown: let firebase choose what token to use.
+    - FIRInstanceIDAPNSTokenTypeProd problem: token null continuously. github.com/firebase/quickstart-ios/issues/47
+ - Set Deployment target to 8.0
+ - Capabilities: Enable Push Notifications
+ - Capabilities: Enable remote notifications
+ - Capabilities: Enable background fetch.
+- Payload to receive silent notifications through firebase:
+```
+{
+"content_available": true, // IMPORTANT: For Apple -> content-available: 1, for firebase -> content_available: true
+"priority": "high",
+"to": "/topics/all", // or to a fcm token
+"data"{
+  "title": "My title", // this implies that you display the notification by yourself
+  "body": "My body", // this implies that you display the notification by yourself
+  "type": "0", // only relevant to this project
+  "timestamp": "1" // only relevant to this project
+ }
+}
+```
+
+List of valid fields for notifications payload:
+https://firebase.google.com/docs/cloud-messaging/http-server-ref#table1
+
+
+
 ---
 
 # Google Firebase Cloud Messaging Cordova Push Plugin
