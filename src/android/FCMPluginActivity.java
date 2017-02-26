@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.content.Intent;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -26,36 +27,53 @@ public class FCMPluginActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-		Log.d(TAG, "==> FCMPluginActivity onCreate");
-		
-		Map<String, Object> data = new HashMap<String, Object>();
+        Log.d(TAG, "==> FCMPluginActivity onCreate");
+
+        if (!FCMPlugin.isLoggedIn(getApplicationContext())){
+            Log.d(TAG, "==> FCMPluginActivity onCreate. NOT LOGGED IN");
+            return;
+        }
+        else{
+            Log.d(TAG, "==> FCMPluginActivity onCreate. LOGGED IN");
+        }
+
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put("wasTapped", true);
         if (getIntent().getExtras() != null) {
-			Log.d(TAG, "==> USER TAPPED NOTFICATION");
-			data.put("wasTapped", true);
-			for (String key : getIntent().getExtras().keySet()) {
+            Log.d(TAG, "==> USER TAPPED NOTFICATION");
+            for (String key : getIntent().getExtras().keySet()) {
                 String value = getIntent().getExtras().getString(key);
+                if ("wasTapped".equals(key)){
+                    continue;
+                }
                 Log.d(TAG, "\tKey: " + key + " Value: " + value);
-				data.put(key, value);
+                data.put(key, value);
             }
         }
-		
-		FCMPlugin.sendPushPayload(data);
+        else{
+            Log.d(TAG, "==> USER TAPPED NOTFICATION, but has no extras");
+        }
 
+        // The notification should already be saved at this point.
+        FCMPlugin.sendPushPayload(this, data);
+        forceMainActivityReload((getIntent() != null) ? getIntent() : null);
         finish();
-
-        forceMainActivityReload();
     }
 
-    private void forceMainActivityReload() {
+    private void forceMainActivityReload(Intent srcInt) {
         PackageManager pm = getPackageManager();
         Intent launchIntent = pm.getLaunchIntentForPackage(getApplicationContext().getPackageName());
+        
+        if (srcInt != null){
+            launchIntent.putExtras(srcInt);
+        }
         startActivity(launchIntent);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-		Log.d(TAG, "==> FCMPluginActivity onResume");
+        Log.d(TAG, "==> FCMPluginActivity onResume");
         final NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancelAll();
     }
