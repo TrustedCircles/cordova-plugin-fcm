@@ -11,7 +11,9 @@
 #import <Cordova/CDVViewController.h>
 
 @interface AppDelegate (FCMPlugin)
+//@interface AppDelegate : UIResponder<UIApplicationDelegate>
 
 + (NSData*)getLastPush;
++ (NSArray*)getPushList;
 
 @end

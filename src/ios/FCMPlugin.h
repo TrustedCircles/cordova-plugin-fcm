@@ -1,8 +1,10 @@
 #import <UIKit/UIKit.h>
 #import <Cordova/CDVPlugin.h>
+#import <CoreLocation/CoreLocation.h>
 
-@interface FCMPlugin : CDVPlugin
+@interface FCMPlugin : CDVPlugin <CLLocationManagerDelegate>
 {
+    CLLocationManager *locationManager;
     //NSString *notificationCallBack;
 }
 
@@ -16,5 +18,15 @@
 - (void)notifyOfTokenRefresh:(NSString*) token;
 - (void)appEnterBackground;
 - (void)appEnterForeground;
+
+- (void)setLoggedIn:(CDVInvokedUrlCommand *)command;
+- (Boolean)getLoggedIn;
+- (void)hasPermission;
+
+- (void)initLocationManager:(NSDictionary *)userInfo;
+- (void)stopLocationManager;
+
+- (void)checkIfIsValidWarning:(CLLocation *) currentLocation;
+- (void)showLocalNotification:(NSString *)title body:(NSString *)body type:(NSString *)type;
 
 @end
