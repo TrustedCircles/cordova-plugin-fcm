@@ -234,7 +234,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                 //.setGroupSummary(true)
                 .setContentIntent(pendingIntent);
 
-        Log.d(TAG, "\tNotification fuid: " + data.get(FCMPlugin.FIELD_FUID).toString());
         String type = (data.get(FCMPlugin.FIELD_TYPE) != null) ? data.get(FCMPlugin.FIELD_TYPE).toString() : "";
         String rkey = (data.get(FCMPlugin.FIELD_RKEY) != null) ? data.get(FCMPlugin.FIELD_RKEY).toString() : "";
         String fuid = (data.get(FCMPlugin.FIELD_FUID) != null) ? data.get(FCMPlugin.FIELD_FUID).toString() : "";
