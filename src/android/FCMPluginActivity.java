@@ -43,6 +43,7 @@ public class FCMPluginActivity extends Activity {
             Log.d(TAG, "==> USER TAPPED NOTFICATION");
             for (String key : getIntent().getExtras().keySet()) {
                 String value = getIntent().getExtras().getString(key);
+                // FIXME: add the key out of the loop, instead of check this here.
                 if ("wasTapped".equals(key)){
                     continue;
                 }

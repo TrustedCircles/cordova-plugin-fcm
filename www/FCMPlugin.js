@@ -14,7 +14,7 @@ function FCMPlugin() {
 FCMPlugin.prototype.getToken = function( success, error ){
 	exec(success, error, "FCMPlugin", 'getToken', []);
 }
-
+    
 FCMPlugin.prototype.onTokenRefresh = function( callback ){
     FCMPlugin.prototype.onTokenRefreshReceived = callback;
 }
@@ -23,7 +23,7 @@ FCMPlugin.prototype.onTokenRefreshReceived = function(token){
     console.log("Received token refresh");
     console.log(token);
 }
-
+    
 FCMPlugin.prototype.getGServicesStatus = function( success, error ){
 	exec(success, error, "FCMPlugin", 'getGServicesStatus', []);
 }
@@ -53,9 +53,14 @@ FCMPlugin.prototype.onNotificationReceived = function(payload){
 	console.log("Received push notification")
 	console.log(payload)
 }
+
 FCMPlugin.prototype.showNotification = function(title, body){
 	exec(result, result, "FCMPlugin", 'showNotification', [title, body]);
-	console.log("shoNotification: " + title)
+}
+
+// dismisses a notification by tag+id
+FCMPlugin.prototype.dismissNotification = function( timestamp, id, success, error ){
+	exec(success, error, "FCMPlugin", 'dismissNotification', [timestamp, id]);
 }
 // FIRE READY //
 exec(function(result){ console.log("FCMPlugin Ready OK") }, function(result){ console.log("FCMPlugin Ready ERROR") }, "FCMPlugin",'ready',[]);

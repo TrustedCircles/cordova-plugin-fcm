@@ -220,6 +220,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
         String title = (data.get(FCMPlugin.FIELD_TITLE) != null) ? data.get(FCMPlugin.FIELD_TITLE).toString() : "";
         String body = (data.get(FCMPlugin.FIELD_BODY) != null) ? data.get(FCMPlugin.FIELD_BODY).toString() : "";
+        String type = (data.get(FCMPlugin.FIELD_TYPE) != null) ? data.get(FCMPlugin.FIELD_TYPE).toString() : "-1";
+        String rkey = (data.get(FCMPlugin.FIELD_RKEY) != null) ? data.get(FCMPlugin.FIELD_RKEY).toString() : "";
+        String fuid = (data.get(FCMPlugin.FIELD_FUID) != null) ? data.get(FCMPlugin.FIELD_FUID).toString() : "";
+        String email = (data.get(FCMPlugin.FIELD_EMAIL) != null) ? data.get(FCMPlugin.FIELD_EMAIL).toString() : "";
 
         Uri defaultSoundUri= RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(_ctx)
@@ -232,12 +236,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                 //        .addLine(data.get("title").toString())
                 //        .setSummaryText(data.get(FCMPlugin.FIELD_EMAIL).toString()))
                 //.setGroupSummary(true)
-                .setContentIntent(pendingIntent);
+                .setContentIntent(pendingIntent)
+                .setLights(Color.WHITE, 1500, 1000);
 
-        String type = (data.get(FCMPlugin.FIELD_TYPE) != null) ? data.get(FCMPlugin.FIELD_TYPE).toString() : "";
-        String rkey = (data.get(FCMPlugin.FIELD_RKEY) != null) ? data.get(FCMPlugin.FIELD_RKEY).toString() : "";
-        String fuid = (data.get(FCMPlugin.FIELD_FUID) != null) ? data.get(FCMPlugin.FIELD_FUID).toString() : "";
-        String email = (data.get(FCMPlugin.FIELD_EMAIL) != null) ? data.get(FCMPlugin.FIELD_EMAIL).toString() : "";
         if (data.get(FCMPlugin.FIELD_FUID) != null){
             Log.d(TAG, "\tsendNotification() group string: " + fuid);
             notificationBuilder.setGroup(fuid);
@@ -250,6 +251,8 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
             notificationBuilder.setCategory(NotificationCompat.CATEGORY_ALARM);
             notificationBuilder.setColor(Color.RED);
             notificationBuilder.setContentText(body);
+            notificationBuilder.setLights(Color.WHITE, 1000, 1000);
+
             if (data.get(FCMPlugin.FIELD_SENT_DATE) != null){
                 notificationBuilder.setSubText(data.get(FCMPlugin.FIELD_SENT_DATE).toString());
             }
@@ -276,6 +279,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                 if (secs_ago > 0){
                     summary += (secs_ago < 60) ? " - " + secs_ago + "s ago" : " - " + (secs_ago / 60) + " mins ago";
                 }
+                rkey = timestamp.toString();
             }
             notificationBuilder.setContentText(body);
             notificationBuilder.setStyle(new NotificationCompat.BigTextStyle()
@@ -288,7 +292,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
             else{
                 notificationBuilder.setColor(Color.GREEN);
             }
-            not_id = 1;
+            // collapse/replace duplicated nots: fuid + type
+            // for example: multiple invitations to be friends of the same person, will be grouped on the friend's mobile 
+            not_id = Integer.valueOf(type);
         }
         else{
             notificationBuilder.setContentText(body);
@@ -300,6 +306,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
         Notification n = notificationBuilder.build();
         if (type.equals( FCMPlugin.TYPE_WARNING )){
+            // TODO: if warning sent >= 1h do not set this
             //n.priority = Notification.IMPORTANCE_MAX;
             n.flags = Notification.FLAG_INSISTENT; // | Notification.FLAG_ONGOING_EVENT;
         }
@@ -313,8 +320,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
             //notificationManager.setInterruptionFilter(notificationManager.INTERRUPTION_FILTER_ALL);
         }
 
+        Log.d(TAG, "posting notification with tag+id: " + rkey + ":" + not_id);
         // the pair (tag, id) must be unique within your application
         // https://developer.android.com/reference/android/app/NotificationManager.html#notify%28java.lang.String,%20int,%20android.app.Notification%29
+        // If a notification with the same tag and id has already been posted by your 
+        // application and has not yet been canceled, it will be replaced by the updated information.
         notificationManager.notify(rkey,
                 not_id,//Integer.valueOf(type.toString()) /* ID of notification */, 
                 n);
@@ -443,10 +453,14 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
             Location rLoc = new Location("xxx");
             rLoc.setLatitude(jo.getDouble("latitude"));
             rLoc.setLongitude(jo.getDouble("longitude"));
-            rLoc.setAccuracy(jo.getInt("accuracy"));
+            int accuracy = 100;
+            if (jo.has("accuracy")){
+                accuracy = jo.getInt("accuracy");
+            }
+            rLoc.setAccuracy(accuracy);
 
             float dTo = rLoc.distanceTo(location);
-            if (dTo < 1000){
+            if (dTo < 1500){
                 Log.d(TAG, "parseAndSendPosition. distanceTo: " + rLoc.distanceTo(location));
 
                 data.put("our_position", 

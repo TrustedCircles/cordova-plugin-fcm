@@ -63,13 +63,14 @@ public class FCMPlugin extends CordovaPlugin {
     public static String TYPE_FINISHED_ROUTE = "4";
     public static String TYPE_USER_UNFRIENDED = "5";
     public static String TYPE_WARNING = "6";
+    public static String TYPE_FINISHED_WARNING = "7";
     
     public static final String FIELD_TITLE = "title";
     public static final String FIELD_BODY = "body";
     public static final String FIELD_TYPE = "type";
     public static final String FIELD_FUID = "fuid";
     public static final String FIELD_SENT_DATE = "sent_date";
-    public static final String FIELD_RKEY = "rkey";
+    public static final String FIELD_RKEY = "key";
     public static final String FIELD_TIMESTAMP = "timestamp";
     public static final String FIELD_EMAIL = "email";
 
@@ -82,6 +83,8 @@ public class FCMPlugin extends CordovaPlugin {
     private static String ACTION_UNSUBSCRIBE_FROM_TOPIC = "unsubscribeFromTopic";
     private static String ACTION_LOG_EVENT = "logEvent";
     private static String ACTION_GET_GSERVICES_STATUS = "getGServicesStatus";
+    private static String ACTION_SHOW_NOTIFICATION = "showNotification";
+    private static String ACTION_DISMISS_NOTIFICATION = "dismissNotification";
 
     private static boolean mIsLoggedIn = false;
 
@@ -235,7 +238,7 @@ public class FCMPlugin extends CordovaPlugin {
 					}
 				});
             }
-			else if (action.equals("showNotification")) {
+			else if (action.equals( ACTION_SHOW_NOTIFICATION )) {
 				cordova.getThreadPool().execute(new Runnable() {
 					public void run() {
 						try{
@@ -248,6 +251,26 @@ public class FCMPlugin extends CordovaPlugin {
                             MyFirebaseMessagingService.sendNotification(mContext, data);
                             */
                             FCMPlugin.postNotification(null, args.getString(0), args.getString(1));
+                            callbackContext.success();
+						}catch(Exception e){
+							callbackContext.error(e.getMessage());
+						}
+                    }
+                });
+            }
+			else if (action.equals( ACTION_DISMISS_NOTIFICATION )) {
+				cordova.getThreadPool().execute(new Runnable() {
+					public void run() {
+						try{
+                            Log.d(TAG, "FCMPlugin dismissNotificaton: " + args.getString(0)); //tag
+                            NotificationManager nManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                            nManager.cancel(args.getString(0), args.getInt(1));
+                            // if (args.getInt(1) == 0){ //dismiss route notification
+                            int id = getPushByTimestamp( args.getString(0) );
+                            Log.d(TAG, "FCMPlugin dismissNotificaton() to remove: " + id); //tag
+                            if (id != -1){
+                                lastArray.remove(id);
+                            }
                             callbackContext.success();
 						}catch(Exception e){
 							callbackContext.error(e.getMessage());
@@ -353,7 +376,7 @@ public class FCMPlugin extends CordovaPlugin {
                     fuid = push.get(FCMPlugin.FIELD_FUID).toString();
                     rkey = push.get(FCMPlugin.FIELD_RKEY).toString();
                     
-                    if (type == FCMPlugin.TYPE_FINISHED_ROUTE){
+                    if (type != null && type == FCMPlugin.TYPE_FINISHED_ROUTE){
                         if ((x = FCMPlugin.getPushIndex(fuid, rkey, FCMPlugin.TYPE_INCOMING_ROUTE)) != -1){
                             lastArray.remove( x );
                             Log.d(TAG, "==> FCMPlugin cleanRoutesPushes() removing INCOMING route, and leaving only FINISHED route: " + rkey);
@@ -369,6 +392,40 @@ public class FCMPlugin extends CordovaPlugin {
         }
 
     }
+    
+    public static int getPushByTimestamp(String _timestamp){
+        String timestamp;
+        Map<String, Object> push = null;
+        try{
+            if (_timestamp == null){
+                return -1;
+            }
+
+            Log.d(TAG, "==> FCMPlugin getPushByTimestamp() timestamp: " + _timestamp + " - pushes: " + lastArray.size());
+
+            for (int i = 0; i < lastArray.size(); i++){
+                push = lastArray.get(i);
+                if (push != null && push.containsKey(FCMPlugin.FIELD_TIMESTAMP)){
+                    timestamp = push.get(FCMPlugin.FIELD_TIMESTAMP).toString();
+                    if (timestamp != null && timestamp.equals( _timestamp )){
+                        Log.d(TAG, "==> FCMPlugin getPushByTimestamp() found. index: " + i + " - " + timestamp);
+                        return i;
+                    }
+                    Log.d(TAG, "==> FCMPlugin getPushByTimestamp() NOPE. index: " + timestamp);
+                }
+                else{
+                    Log.d(TAG, "==> FCMPlugin getPushByTimestamp() no field timestamp");
+                }
+            }
+        }
+        catch(Exception e){
+            Log.d(TAG, "==> FCMPlugin exception: " + e.getMessage());
+            e.printStackTrace();
+        }
+        Log.d(TAG, "==> FCMPlugin getPushByTimestamp() NOT found: " + _timestamp);
+
+        return -1;
+    }
 
     public static int getPushIndex(String _fuid, String _rkey, String _type){
         String type;
@@ -382,7 +439,7 @@ public class FCMPlugin extends CordovaPlugin {
                     type = push.get(FCMPlugin.FIELD_TYPE).toString();
                     fuid = push.get(FCMPlugin.FIELD_FUID).toString();
                     rkey = push.get(FCMPlugin.FIELD_RKEY).toString();
-                    if (type.equals ( _type ) && fuid.equals( _fuid ) && rkey.equals( _rkey )){
+                    if (type != null && type.equals ( _type ) && fuid.equals( _fuid ) && rkey.equals( _rkey )){
                         Log.d(TAG, "==> FCMPlugin getRouteIndex() found. rkey: " + _rkey + " index: " + i);
                         return i;
                     }
@@ -433,22 +490,23 @@ public class FCMPlugin extends CordovaPlugin {
 
     public void logEvent (final JSONArray args, final CallbackContext callbackContext){
         try{
-            Log.d(TAG, "logEvent() key: " + args.getString(0) + " - value: " + args.getString(1));
-            //args.getJSONObject(1)
+            Log.d(TAG, "logEvent() key: " + args.getString(0) + " - value: " + args.getString(1) + " length: " + args.length());
 
-	        // borroed from cordova-plugin-firebase :]
-            final Bundle parms = new Bundle();
-            JSONObject obj = args.getJSONObject(1);
-            Iterator iter = obj.keys();
-            while(iter.hasNext()){
-                String key = (String)iter.next();
-                Object value = obj.get(key);
-                Log.d(TAG, " key: " + key + " value: " + value);
-                if (value instanceof Integer || value instanceof Double) {
-                    parms.putFloat(key, ((Number)value).floatValue());
-                }
-                else{
-                    parms.putString(key, value.toString());
+	        // borrowed from cordova-plugin-firebase :]
+            final Bundle parms = (!args.getString(1).equals("null")) ? new Bundle() : null;
+            if (parms != null){
+                JSONObject obj = args.getJSONObject(1);
+                Iterator iter = obj.keys();
+                while(iter.hasNext()){
+                    String key = (String)iter.next();
+                    Object value = obj.get(key);
+                    Log.d(TAG, " key: " + key + " value: " + value);
+                    if (value instanceof Integer || value instanceof Double) {
+                        parms.putFloat(key, ((Number)value).floatValue());
+                    }
+                    else{
+                        parms.putString(key, value.toString());
+                    }
                 }
             }
 
