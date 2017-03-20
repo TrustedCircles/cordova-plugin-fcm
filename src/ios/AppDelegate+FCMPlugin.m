@@ -140,7 +140,7 @@ static NSMutableArray *pushList;
     // [START ios_10_data_message_handling]
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 // Handle incoming notification messages while app is in the foreground.
-- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+/*- (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler {
     // Print message ID.
@@ -159,7 +159,7 @@ static NSMutableArray *pushList;
     [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
     // Change this to your preferred presentation option
     completionHandler(UNNotificationPresentationOptionAlert);
-}
+}*/
 
 
 // Handle notification messages after display notification is tapped by the user.
@@ -249,6 +249,8 @@ static NSMutableArray *pushList;
     // NOTE: a push directly through apple will have the fields under data.* available
     // through firebase direct from the root of the object, @"title"
     
+    NSString *type = userInfo[@"type"];
+    
 	//USER NOT TAPPED NOTIFICATION
     if (application.applicationState == UIApplicationStateActive) {
         NSLog(@"Remote notification. app active");
@@ -258,17 +260,21 @@ static NSMutableArray *pushList;
                                                              error:&error];
         // app state active: on ios10 willPresentNotification handles Foreground notifications
         // So avoid to process it twice for iOS10
-        if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
-            NSLog(@"Remote notification. app active on < iOS10");
-            [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
-            [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
-        }
+        //if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
+            //NSLog(@"Remote notification. app active on < iOS10");
+            if ([type isEqualToString:@"6"]){
+                [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+            }
+            else{
+                [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
+                [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
+            }
     // app is in background or in standby (NOTIFICATION WILL BE TAPPED)
     }else if (application.applicationState == UIApplicationStateBackground) {
         NSLog(@"Remote notification. app in background");
         
         [userInfoMutable setValue:@(YES) forKey:@"wasTapped"];
-        NSString *type = userInfo[@"type"];
+        
         if ([type isEqualToString:@"6"]){
             [FCMPlugin.fcmPlugin initLocationManager:userInfo];
         }
@@ -281,7 +287,7 @@ static NSMutableArray *pushList;
                                                            options:0
                                                              error:&error];
         //NSLog(@"APP WAS CLOSED DURING PUSH RECEPTION Saved data: %@", jsonData);
-        NSLog(@"Remote notification. other state");
+        NSLog(@"Remote notification. OTHER STATE?");
         [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
         lastPush = jsonData;
         [pushList addObject:jsonData];

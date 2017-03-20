@@ -114,7 +114,7 @@ static FCMPlugin *fcmPluginInstance;
 {
     NSString *JSONString = [[NSString alloc] initWithBytes:[payload bytes] length:[payload length] encoding:NSUTF8StringEncoding];
     NSString * notifyJS = [NSString stringWithFormat:@"%@(%@);", notificationCallback, JSONString];
-    NSLog(@"stringByEvaluatingJavaScriptFromString %@", notifyJS);
+    NSLog(@"notifyOfMessage: %@", notifyJS);
     
     NSString *jsonStr;
     NSArray *pushList = [AppDelegate getPushList];
@@ -181,7 +181,8 @@ static FCMPlugin *fcmPluginInstance;
 }
 
 CLLocation *warnLoc = nil;
-NSData *warnData = nil;
+NSMutableDictionary *warnData = nil;
+Boolean checkingLocation = NO;
 -(void) initLocationManager:(NSDictionary *)userInfo
 {
     if (warnLoc != nil){
@@ -189,14 +190,31 @@ NSData *warnData = nil;
         warnLoc = nil;
         warnData = nil;
     }
-    NSLog(@"initLocationManager() Position of the warning: %@", [userInfo valueForKeyPath:@"position.latitude"]);
+    NSLog(@"initLocationManager() Position of the warning: %@", [userInfo valueForKeyPath:@"position"]);
+    NSString *positionStr = [userInfo valueForKeyPath:@"position"];
+    id remote_pos = [NSJSONSerialization JSONObjectWithData:[positionStr dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    NSLog(@"latitude: %@", [remote_pos objectForKey:@"latitude"]);
     
-    warnData = [NSJSONSerialization dataWithJSONObject:userInfo
-                                                       options:0
-                                                         error:nil];
+    NSString *warnTimestamp = [userInfo valueForKeyPath:@"timestamp"];
+    if (warnTimestamp == nil){
+        NSLog(@"malformed warning, no timestamp");
+        return;
+    }
+    NSDate *now = [NSDate date];
+    NSDate *warnTime = [NSDate dateWithTimeIntervalSince1970:[warnTimestamp doubleValue]];
+    NSTimeInterval warnDif = [now timeIntervalSinceDate:warnTime];
+    NSLog(@"warning sent %d secs ago", (int)warnDif);
+    if ((warnDif / 3600) > 5){
+        NSLog(@"warning TOO old, discarding");
+        return;
+    }
+    
+    warnData = [userInfo mutableCopy];
+    [warnData setValue:[NSString stringWithFormat:@"%d", ((int)warnDif/60)] forKey:@"sent_time"];
+    
     warnLoc = [[CLLocation alloc]
-               initWithLatitude:[[userInfo valueForKeyPath:@"position.latitude"] doubleValue]
-                       longitude:[[userInfo valueForKeyPath:@"position.longitude"] doubleValue]];
+               initWithLatitude:[[remote_pos objectForKey:@"latitude"] doubleValue]
+                       longitude:[[remote_pos objectForKey:@"longitude"] doubleValue]];
     
     locationManager = [[CLLocationManager alloc] init];
     [locationManager requestWhenInUseAuthorization];
@@ -204,14 +222,14 @@ NSData *warnData = nil;
     //locationManager = [CLLocationManager new];
     locationManager.delegate = self;
     locationManager.distanceFilter = kCLDistanceFilterNone;
-    locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters;
+    locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters;
     locationManager.allowsBackgroundLocationUpdates = YES;
     locationManager.pausesLocationUpdatesAutomatically = NO;
     locationManager.activityType = CLActivityTypeFitness;
     [locationManager disallowDeferredLocationUpdates];
     [locationManager startUpdatingLocation];
  
-    [NSTimer scheduledTimerWithTimeInterval:90.0
+    [NSTimer scheduledTimerWithTimeInterval:60.0
                                      target:self
                                    selector:@selector(stopLocationManager)
                                    userInfo:nil repeats:NO];
@@ -221,7 +239,9 @@ NSData *warnData = nil;
 
 -(void) stopLocationManager
 {
+    checkingLocation = NO;
     warnLoc = nil;
+    warnData = nil;
     [locationManager stopUpdatingLocation];
     
     NSLog(@"stopLocationManager");
@@ -244,17 +264,27 @@ NSData *warnData = nil;
 {
     NSLog(@"locationManager error: %@", error);
     [self stopLocationManager];
-    warnLoc = nil;
 }
 
 - (void)checkIfIsValidWarning:(CLLocation *) currentLocation
 {
+    if (checkingLocation == YES){
+        NSLog(@"checkIfIsValidWarning: ALREADY CHEKING");
+        return;
+    }
+    checkingLocation = YES;
+
     CLLocationDistance dist = [warnLoc distanceFromLocation:currentLocation];
     if (dist < 1500.0){
         NSLog(@"checkIfIsValidWarning. VALID: %f", dist);
-        [self showLocalNotification:@"Aviso de ayuda urgente" body:@"Alguien solicita ayuda urgente\nEnviado hace 2 eones." type:TYPE_WARNING];
+        [self showLocalNotification:@"Aviso de ayuda urgente" body:[NSString stringWithFormat:@"Alguien solicita ayuda urgente\nEnviado hace %@ mins.",warnData[@"sent_time"]] type:TYPE_WARNING];
         if (warnData != nil){
-            [self notifyOfMessage:warnData];
+            [warnData setValue:[NSString stringWithFormat:@"{\"latitude\": %f,\"longitude\": %f}", currentLocation.coordinate.latitude, currentLocation.coordinate.longitude] forKey:@"our_position"];
+            NSLog(@"OUR POSITION: %@", warnData[@"our_position"]);
+            NSData *data = [NSJSONSerialization dataWithJSONObject:warnData
+                                                                          options:0
+                                                                            error:nil];
+            [self notifyOfMessage:data];
         }
     }
     else{
@@ -293,9 +323,9 @@ NSData *warnData = nil;
         //lc.timeZone = [NSTimeZone defaultTimeZone];
         lc.fireDate = [NSDate dateWithTimeIntervalSinceNow:5];
         //lc.applicationIconBadgeNumber = [[UIApplication sharedApplication] applicationIconBadgeNumber] + 1;
-        if ([type isEqualToString:TYPE_WARNING]){
+        /*if ([type isEqualToString:TYPE_WARNING]){
             lc.repeatInterval = kCFCalendarUnitSecond;
-        }
+        }*/
         [[UIApplication sharedApplication] scheduleLocalNotification:lc];
     }
     else{
