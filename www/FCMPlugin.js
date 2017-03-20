@@ -28,8 +28,8 @@ FCMPlugin.prototype.getGServicesStatus = function( success, error ){
 	exec(success, error, "FCMPlugin", 'getGServicesStatus', []);
 }
 // SET LOGIN STATUS
-FCMPlugin.prototype.setLoggedIn = function( status, result ){
-	exec(result, result, "FCMPlugin", 'setLoggedIn', [status]);
+FCMPlugin.prototype.setLoggedIn = function( uid, status, result ){
+	exec(result, result, "FCMPlugin", 'setLoggedIn', [uid, status]);
 }
 // SUBSCRIBE TO TOPIC //
 FCMPlugin.prototype.subscribeToTopic = function( topic, success, error ){

@@ -74,6 +74,8 @@ public class FCMPlugin extends CordovaPlugin {
     public static final String FIELD_TIMESTAMP = "timestamp";
     public static final String FIELD_EMAIL = "email";
 
+    public static final int WARNING_RADIUS = 1500;
+    public static final int VALID_LAST_ACCURACY = 2000;
 
     private static String ACTION_IS_READY = "ready";
     private static String ACTION_REGISTER_NOTIFICATION = "registerNotification";
@@ -87,6 +89,7 @@ public class FCMPlugin extends CordovaPlugin {
     private static String ACTION_DISMISS_NOTIFICATION = "dismissNotification";
 
     private static boolean mIsLoggedIn = false;
+    private static String mUserId = "";
 
     private static FirebaseAnalytics mFirebaseAnalytics;
     public String mEventSelectContent = "select_content";
@@ -141,8 +144,9 @@ public class FCMPlugin extends CordovaPlugin {
 					new Runnable() {
 					public void run() {
 					try{
-                        Log.d(TAG, "setLoggedIn() new status: " + args.getString(0));
-                        setLoggedIn(args.getString(0).equals("true"));
+                        Log.d(TAG, "setLoggedIn() uid: " + args.getString(0));
+                        Log.d(TAG, "setLoggedIn() new status: " + args.getString(1));
+                        setLoggedIn(args.getString(0), args.getString(1).equals("true"));
                         callbackContext.success();
 					}
 					catch(Exception e){
@@ -544,15 +548,37 @@ public class FCMPlugin extends CordovaPlugin {
         }
     }
 
-    public static void setLoggedIn(boolean status){
+    public static void setLoggedIn(String uid, boolean status){
         mIsLoggedIn = status;
         if (mContext != null){
             SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(mContext);
             SharedPreferences.Editor ed = sPref.edit();
             ed.putBoolean("is_logged_in", status);
-            Log.d(TAG, "setLoggedIn() status: " + status);
+            ed.putString("uid", uid);
+            Log.d(TAG, "setLoggedIn() status: " + status + " uid: " + uid);
             ed.commit();
         }
+        if (mIsLoggedIn == false){
+            mUserId = null;
+            new Thread(new Runnable(){
+                @Override
+                public void run(){
+                    try{
+                        FirebaseInstanceId.getInstance().deleteInstanceId();
+                    }
+                    catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+        else{
+            mUserId = uid;
+        }
+    }
+
+    public static String getUserId(){
+        return mUserId;
     }
     
     public static boolean isLoggedIn(Context _ctx){

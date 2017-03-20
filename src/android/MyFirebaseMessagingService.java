@@ -81,6 +81,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
     // [START receive_message]
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
+        // https://firebase.google.com/docs/reference/android/com/google/firebase/messaging/RemoteMessage
         // TODO(developer): Handle FCM messages here.
         // If the application is in the foreground handle both data and notification messages here.
         // Also if you intend on generating your own notifications as a result of a received FCM
@@ -356,7 +357,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
             if (gApiClient != null && gApiClient.isConnected()){
                 Log.d(TAG, "start_listening() connected");
-                //LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, _ctx);
                 final Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
                         gApiClient);
 
@@ -372,7 +372,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                                         Log.d(TAG, "newLocation ok. removing updates ");
                                         if (gApiClient != null && gApiClient.isConnected()){
                                             Log.d(TAG, "gApiClient connected");
-                                            //gApiClient.disconnect();
                                         }
                                         else{
                                             Log.e(TAG, "gApiClient null");
@@ -382,7 +381,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                                         Log.d(TAG, "newLocation no ok. bad position");
                                         if (gApiClient != null && gApiClient.isConnected()){
                                             Log.d(TAG, "gApiClient connected");
-                                            //gApiClient.disconnect();
                                         }
                                     }
                                 }
@@ -395,21 +393,14 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
 
                 // FIXME: if lastLocation is null, we don't get gps locations..
-                if (/*1==0 &&*/ mLastLocation != null /*&& mLastLocation.getAccuracy() < 500*/) {
+                if (/*1==0 &&*/ mLastLocation != null && mLastLocation.getAccuracy() < FCMPlugin.VALID_LAST_ACCURACY) {
                     Log.d(TAG, "lastKnowLocation. lat: " + mLastLocation.getLatitude());
                     Log.d(TAG, "lastKnowLocation. accuracy: " + mLastLocation.getAccuracy());
-
-                    /*if (mLastLocation.getAccuracy() > 500){
-                        Log.d(TAG, "lastKnowLocation. bad accuracy: " + mLastLocation.getAccuracy());
-                        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mLocListener);
-                        return;
-                    }*/
 
                     if (parseAndSendPosition(_ctx, gApiClient, mLastLocation, mLocListener, data)){
                         Log.d(TAG, "lastKnowLocation. accuracy: " + mLastLocation.getAccuracy());
                         if (gApiClient != null && gApiClient.isConnected()){
                             Log.d(TAG, "gApiClient connected");
-                            //gApiClient.disconnect();
                         }
                     }
                     else{
@@ -460,7 +451,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
             rLoc.setAccuracy(accuracy);
 
             float dTo = rLoc.distanceTo(location);
-            if (dTo < 1500){
+            if (dTo < FCMPlugin.WARNING_RADIUS){
                 Log.d(TAG, "parseAndSendPosition. distanceTo: " + rLoc.distanceTo(location));
 
                 data.put("our_position", 
