@@ -81,6 +81,7 @@ public class FCMPlugin extends CordovaPlugin {
     private static String ACTION_REGISTER_NOTIFICATION = "registerNotification";
     private static String ACTION_GET_TOKEN = "getToken";
     private static String ACTION_SET_LOGGED_IN = "setLoggedIn";
+    private static String ACTION_SET_PREFERENCE = "setPreference";
     private static String ACTION_SUBSCRIBE_TO_TOPIC = "subscribeToTopic";
     private static String ACTION_UNSUBSCRIBE_FROM_TOPIC = "unsubscribeFromTopic";
     private static String ACTION_LOG_EVENT = "logEvent";
@@ -156,6 +157,22 @@ public class FCMPlugin extends CordovaPlugin {
 				}
 				});
 			}
+			else if (action.equals( ACTION_SET_PREFERENCE )) {
+				cordova.getActivity().runOnUiThread(
+					new Runnable() {
+					public void run() {
+					try{
+                        Log.d(TAG, "setPreference: " + args.getString(0) + " - " + args.getString(1));
+                        setPreference(args.getString(0), args.getString(1));
+                        callbackContext.success();
+					}
+					catch(Exception e){
+						Log.e(TAG, "setLoggedIn() error: " + e.getMessage());
+						callbackContext.error(e.getMessage());
+					}
+				}
+				});
+            }
 			// GET TOKEN //
 			else if (action.equals( ACTION_GET_TOKEN )) {
 				cordova.getActivity().runOnUiThread(new Runnable() {
@@ -210,6 +227,10 @@ public class FCMPlugin extends CordovaPlugin {
 				cordova.getThreadPool().execute(new Runnable() {
 					public void run() {
 						try{
+                            if (args.getString(0) == null || args.getString(0).equals("null")){
+                                Log.d(TAG, "subscribeToTopic: null");
+                                return;
+                            }
 							FirebaseMessaging.getInstance().subscribeToTopic( args.getString(0) );
 							callbackContext.success();
 						}catch(Exception e){
@@ -547,6 +568,35 @@ public class FCMPlugin extends CordovaPlugin {
 	    Log.e(TAG, "postEvent exception: " + e.getMessage());
         }
     }
+
+    public static void setPreference(String key, String value){
+        try{
+            if (mContext != null){
+                SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+                SharedPreferences.Editor ed = sPref.edit();
+                ed.putString(key, value);
+                ed.commit();
+            }
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public static String getPreference(Context _ctx, String key){
+        if (_ctx != null){
+            try{
+                SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(_ctx);
+                Log.d(TAG, "setLoggedIn() isLoggedIn(): " + sPref.getString(key, null));
+                return sPref.getString(key, null);
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
+
 
     public static void setLoggedIn(String uid, boolean status){
         mIsLoggedIn = status;

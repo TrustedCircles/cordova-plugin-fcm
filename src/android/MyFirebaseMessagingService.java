@@ -116,6 +116,18 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         final Object rkey = data.get(FCMPlugin.FIELD_RKEY);
         final Object fuid = data.get(FCMPlugin.FIELD_FUID);
         final Object timestamp = data.get(FCMPlugin.FIELD_TIMESTAMP);
+
+        if (type != null && (type.toString().equals( FCMPlugin.TYPE_WARNING ) ||
+                    type.toString().equals( FCMPlugin.TYPE_FINISHED_WARNING ))){
+            String rwarns = FCMPlugin.getPreference(this, "receive_warnings");
+            if (rwarns != null && rwarns.equals("false")){
+                Log.d(TAG, "\tWARN: User doesnt want to receive warnings: " + rwarns);
+                return;
+            }
+            Log.d(TAG, "\tUser wants to receive warnings: " + rwarns);
+        }
+
+
         if (data.containsKey("silent")){
 			Log.d(TAG, "\tSilent notification");
             if (type != null && type.toString().equals( FCMPlugin.TYPE_WARNING )){
@@ -366,7 +378,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                                 public void onLocationChanged(Location location) {
                                     Log.d(TAG, "newLocation. lat: " + location.getLatitude());
                                     Log.d(TAG, "newLocation. accuracy: " + location.getAccuracy());
-                                    //Toast.makeText(_ctx, "Latitude:" + location.getLatitude() + ", Longitude:"+ location.getLongitude(),Toast.LENGTH_LONG).show();
 
                                     if (parseAndSendPosition(_ctx, gApiClient, location, this, data)){
                                         Log.d(TAG, "newLocation ok. removing updates ");
@@ -390,9 +401,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                                 }
                             };
 
-
-
-                // FIXME: if lastLocation is null, we don't get gps locations..
                 if (/*1==0 &&*/ mLastLocation != null && mLastLocation.getAccuracy() < FCMPlugin.VALID_LAST_ACCURACY) {
                     Log.d(TAG, "lastKnowLocation. lat: " + mLastLocation.getLatitude());
                     Log.d(TAG, "lastKnowLocation. accuracy: " + mLastLocation.getAccuracy());
@@ -404,7 +412,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                         }
                     }
                     else{
-                        Log.d(TAG, "lastKnowLocation. too far away: " + mLastLocation.getAccuracy());                    
+                        Log.d(TAG, "lastKnowLocation. too far away. accuracy: " + mLastLocation.getAccuracy());
                         LocationServices.FusedLocationApi.requestLocationUpdates(gApiClient, locRequest, mLocListener);
                     }
                 }
@@ -461,6 +469,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                         );
                 sendNotification(_ctx, data);
                 FCMPlugin.sendPushPayload( _ctx, data );
+                LocationServices.FusedLocationApi.removeLocationUpdates(gApiClient, locListener);
                 return true;
             }
             else{

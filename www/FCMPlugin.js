@@ -31,6 +31,10 @@ FCMPlugin.prototype.getGServicesStatus = function( success, error ){
 FCMPlugin.prototype.setLoggedIn = function( uid, status, result ){
 	exec(result, result, "FCMPlugin", 'setLoggedIn', [uid, status]);
 }
+// SET PREFERENCE
+FCMPlugin.prototype.setPreference = function( key, value, result ){
+	exec(result, result, "FCMPlugin", 'setPreference', [key, value]);
+}
 // SUBSCRIBE TO TOPIC //
 FCMPlugin.prototype.subscribeToTopic = function( topic, success, error ){
 	exec(success, error, "FCMPlugin", 'subscribeToTopic', [topic]);
