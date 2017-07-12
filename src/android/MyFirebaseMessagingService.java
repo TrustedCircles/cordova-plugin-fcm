@@ -93,17 +93,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         }
 
         Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
-	
+
         boolean isLoggedIn = FCMPlugin.isLoggedIn(this);
-		
-        if( remoteMessage.getNotification() != null){
-            Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
-            Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
-        }
-        else{
-			Log.d(TAG, "\tNotification null");
-        }
-		
+        String uid = FCMPlugin.getPreference(this, "uid");
+
         final Map<String, Object> data = new HashMap<String, Object>();
         data.put("wasTapped", false);
         for (String key : remoteMessage.getData().keySet()) {
@@ -116,6 +109,18 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         final Object rkey = data.get(FCMPlugin.FIELD_RKEY);
         final Object fuid = data.get(FCMPlugin.FIELD_FUID);
         final Object timestamp = data.get(FCMPlugin.FIELD_TIMESTAMP);
+        Log.d(TAG, "\tisLoggedIn(): " + isLoggedIn + " - uid: " + uid + " fuid: " + (fuid != null ? fuid.toString() : "<none>"));
+
+        if( remoteMessage.getNotification() != null){
+            Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
+            Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
+            if (remoteMessage.getNotification().getTitle() != null &&
+                    remoteMessage.getNotification().getBody() != null &&
+                    remoteMessage.getData() != null && type != null && type.toString().equals( FCMPlugin.TYPE_NEW_CAMPAIGN )){
+                FCMPlugin.sendPushPayload( mContext, data );
+                return;
+            }
+        }
 
         if (type != null && (type.toString().equals( FCMPlugin.TYPE_WARNING ) ||
                     type.toString().equals( FCMPlugin.TYPE_FINISHED_WARNING ))){
