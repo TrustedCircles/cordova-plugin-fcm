@@ -194,17 +194,37 @@ static NSMutableArray *pushList;
     NSDictionary *userInfo = remoteMessage.appData;
     NSError *error;
     NSDictionary *userInfoMutable = [userInfo mutableCopy];
+    if (userInfo[@"key"] != nil){
+        [userInfoMutable setValue:[NSString stringWithFormat:@"%@%@",userInfo[@"key"],userInfo[@"fuid"]] forKey:@"notificationId"];
+    }
+    else{
+        [userInfoMutable setValue:[NSString stringWithFormat:@"%@%@", userInfo[@"fuid"], userInfo[@"type"]] forKey:@"notificationId"];
+    }
+    NSString *type = userInfo[@"type"];
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfoMutable
                                                        options:0
                                                          error:&error];
     if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive) {
-        //[FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
-        NSLog(@"receivedRemoteFCMMessage() appStateActive");
-        [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
+        NSLog(@"applicationReceivedRemoteMessage() appStateActive");
+        
+        if ([type isEqualToString:@"6"]){
+            NSString *receive_warnings = [FCMPlugin.fcmPlugin getPreference:@"receive_warnings"];
+            if (receive_warnings == nil || [receive_warnings isEqualToString:@"true"] ){
+                [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+            }
+            else{
+                NSLog(@"receive_warnings disabled: %@", receive_warnings);
+            }
+        }
+        else{
+            [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
+        }
+        
+        
     }
     else{
         NSLog(@"receivedRemoteFCMMessage() appState: %ld", (long)[UIApplication sharedApplication].applicationState);
-        [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
+        [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:type userInfo:userInfoMutable];
     }
 }
 #endif
@@ -245,7 +265,12 @@ static NSMutableArray *pushList;
     NSError *error;
     
     NSDictionary *userInfoMutable = [userInfo mutableCopy];
-    
+    if (userInfo[@"key"] != nil){
+        [userInfoMutable setValue:[NSString stringWithFormat:@"%@%@",userInfo[@"key"],userInfo[@"fuid"]] forKey:@"notificationId"];
+    }
+    else{
+        [userInfoMutable setValue:[NSString stringWithFormat:@"%@%@", userInfo[@"fuid"], userInfo[@"type"]] forKey:@"notificationId"];
+    }
     // NOTE: a push directly through apple will have the fields under data.* available
     // through firebase direct from the root of the object, @"title"
     
@@ -263,10 +288,16 @@ static NSMutableArray *pushList;
         //if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
             //NSLog(@"Remote notification. app active on < iOS10");
             if ([type isEqualToString:@"6"]){
-                [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+                NSString *receive_warnings = [FCMPlugin.fcmPlugin getPreference:@"receive_warnings"];
+                if (receive_warnings == nil || [receive_warnings isEqualToString:@"true"] ){
+                    [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+                }
+                else{
+                    NSLog(@"receive_warnings disabled: %@", receive_warnings);
+                }
             }
             else{
-                [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
+                [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type" userInfo:userInfoMutable];
                 [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
             }
     // app is in background or in standby (NOTIFICATION WILL BE TAPPED)
@@ -276,10 +307,16 @@ static NSMutableArray *pushList;
         [userInfoMutable setValue:@(YES) forKey:@"wasTapped"];
         
         if ([type isEqualToString:@"6"]){
-            [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+            NSString *receive_warnings = [FCMPlugin.fcmPlugin getPreference:@"receive_warnings"];
+            if (receive_warnings == nil || [receive_warnings isEqualToString:@"true"] ){
+                [FCMPlugin.fcmPlugin initLocationManager:userInfo];
+            }
+            else{
+                NSLog(@"receive_warnings disabled (tapped): %@", receive_warnings);
+            }
         }
         else{
-            [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
+            [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type" userInfo:userInfoMutable];
         }
     }else{
         [userInfoMutable setValue:@(YES) forKey:@"wasTapped"];
@@ -288,7 +325,7 @@ static NSMutableArray *pushList;
                                                              error:&error];
         //NSLog(@"APP WAS CLOSED DURING PUSH RECEPTION Saved data: %@", jsonData);
         NSLog(@"Remote notification. OTHER STATE?");
-        [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type"];
+        [FCMPlugin.fcmPlugin showLocalNotification:userInfo[@"title"] body:userInfo[@"body"] type:@"type" userInfo:userInfoMutable];
         lastPush = jsonData;
         [pushList addObject:jsonData];
     }
@@ -344,7 +381,6 @@ static NSMutableArray *pushList;
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     NSLog(@"app become active");
-    //[self showLocalNotification:@"test22" body:@"body11" type:@"type"];
     self.applicationInBackground = @(NO);
     [FCMPlugin.fcmPlugin appEnterForeground];
     [self connectToFcm];

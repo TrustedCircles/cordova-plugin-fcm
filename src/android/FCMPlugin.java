@@ -64,6 +64,10 @@ public class FCMPlugin extends CordovaPlugin {
     public static String TYPE_USER_UNFRIENDED = "5";
     public static String TYPE_WARNING = "6";
     public static String TYPE_FINISHED_WARNING = "7";
+    public static String TYPE_NEW_CAMPAIGN = "106";
+    
+    public static String KEY_PREF_WARNINGS_TOTAL = "warnings_total";
+    public static String KEY_PREF_RECEIVE_WARNINGS = "receive_warnings";
     
     public static final String FIELD_TITLE = "title";
     public static final String FIELD_BODY = "body";
@@ -82,6 +86,7 @@ public class FCMPlugin extends CordovaPlugin {
     private static String ACTION_GET_TOKEN = "getToken";
     private static String ACTION_SET_LOGGED_IN = "setLoggedIn";
     private static String ACTION_SET_PREFERENCE = "setPreference";
+    private static String ACTION_GET_PREFERENCE = "getPreference";
     private static String ACTION_SUBSCRIBE_TO_TOPIC = "subscribeToTopic";
     private static String ACTION_UNSUBSCRIBE_FROM_TOPIC = "unsubscribeFromTopic";
     private static String ACTION_LOG_EVENT = "logEvent";
@@ -167,7 +172,23 @@ public class FCMPlugin extends CordovaPlugin {
                         callbackContext.success();
 					}
 					catch(Exception e){
-						Log.e(TAG, "setLoggedIn() error: " + e.getMessage());
+						Log.e(TAG, "setPreference() error: " + e.getMessage());
+						callbackContext.error(e.getMessage());
+					}
+				}
+				});
+            }
+			else if (action.equals( ACTION_GET_PREFERENCE )) {
+				cordova.getActivity().runOnUiThread(
+					new Runnable() {
+					public void run() {
+					try{
+                        String value = getPreference(mContext, args.getString(0));
+                        Log.d(TAG, "getPreference: " + args.getString(0) + " - " + value);
+                        callbackContext.success( value );
+					}
+					catch(Exception e){
+						Log.e(TAG, "getPreference() error: " + e.getMessage());
 						callbackContext.error(e.getMessage());
 					}
 				}
@@ -587,7 +608,7 @@ public class FCMPlugin extends CordovaPlugin {
         if (_ctx != null){
             try{
                 SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(_ctx);
-                Log.d(TAG, "setLoggedIn() isLoggedIn(): " + sPref.getString(key, null));
+                Log.d(TAG, "getPreference(): " + sPref.getString(key, null));
                 return sPref.getString(key, null);
             }
             catch(Exception e){

@@ -42,8 +42,34 @@ static FCMPlugin *fcmPluginInstance;
     
 }
 
+- (void) showNotification:(CDVInvokedUrlCommand *)command
+{
+    NSString* title = [command.arguments objectAtIndex:0];
+    NSString* body = [command.arguments objectAtIndex:1];
+    [self showLocalNotification:title body:body type:@"999" userInfo:nil];
+}
+
+- (void) dismissNotification:(CDVInvokedUrlCommand *)command
+{
+    NSString* timestamp = [command.arguments objectAtIndex:0];
+    if (timestamp != nil){
+        [self dismissNotificationByTimestamp:timestamp];
+    }
+}
+
+- (void) getGServicesStatus:(CDVInvokedUrlCommand *)command
+{
+    // dummy
+}
+
+- (void) logEvent:(CDVInvokedUrlCommand *)command
+{
+    //[FIRAnalytics logEventWithName:[command.arguments objectAtIndex:0]
+    //                    parameters: [command.arguments objectAtIndex:1]];
+}
+
 // GET TOKEN //
-- (void) getToken:(CDVInvokedUrlCommand *)command 
+- (void) getToken:(CDVInvokedUrlCommand *)command
 {
     NSLog(@"get Token");
     [self.commandDelegate runInBackground:^{
@@ -160,6 +186,36 @@ static FCMPlugin *fcmPluginInstance;
     appInForeground = YES;
 }
 
+- (void) setPreference:(CDVInvokedUrlCommand *)command
+{
+    NSString *key = [command.arguments objectAtIndex:0];
+    NSString *value = [command.arguments objectAtIndex:1];
+    NSLog(@"setPreference(): %@ - args: %@", key, command.arguments);
+    if (key == nil || value == nil){
+        NSLog(@"setPreference() invalid values");
+        return;
+    }
+    
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    [prefs setObject:value forKey:key];
+    [prefs synchronize];
+    
+    [self.commandDelegate runInBackground:^{
+        CDVPluginResult* pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:key];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
+- (NSString *) getPreference:(NSString *) key
+{
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    NSString *value = [prefs stringForKey:key];
+    NSLog(@"getPreference(): %@ - %@", key, value);
+    
+    return value;
+}
+
 - (void) setLoggedIn:(CDVInvokedUrlCommand *)command
 {
     NSString *str_status = [command.arguments objectAtIndex:0];
@@ -179,6 +235,15 @@ static FCMPlugin *fcmPluginInstance;
     
     return status;//[status isEqualToString:@"true"];
 }
+
+
+
+
+
+
+/************* geolocation **************/
+ 
+
 
 CLLocation *warnLoc = nil;
 NSMutableDictionary *warnData = nil;
@@ -204,7 +269,7 @@ Boolean checkingLocation = NO;
     NSDate *warnTime = [NSDate dateWithTimeIntervalSince1970:[warnTimestamp doubleValue]];
     NSTimeInterval warnDif = [now timeIntervalSinceDate:warnTime];
     NSLog(@"warning sent %d secs ago", (int)warnDif);
-    if ((warnDif / 3600) > 5){
+    if ((warnDif / 3600) > 3){
         NSLog(@"warning TOO old, discarding");
         return;
     }
@@ -273,11 +338,11 @@ Boolean checkingLocation = NO;
         return;
     }
     checkingLocation = YES;
-
+    
     CLLocationDistance dist = [warnLoc distanceFromLocation:currentLocation];
     if (dist < 1500.0){
         NSLog(@"checkIfIsValidWarning. VALID: %f", dist);
-        [self showLocalNotification:@"Aviso de ayuda urgente" body:[NSString stringWithFormat:@"Alguien solicita ayuda urgente\nEnviado hace %@ mins.",warnData[@"sent_time"]] type:TYPE_WARNING];
+        [self showLocalNotification:@"Aviso de ayuda urgente" body:[NSString stringWithFormat:@"Alguien solicita ayuda urgente\nEnviado hace %@ mins.",warnData[@"sent_time"]] type:TYPE_WARNING userInfo:warnData];
         if (warnData != nil){
             [warnData setValue:[NSString stringWithFormat:@"{\"latitude\": %f,\"longitude\": %f}", currentLocation.coordinate.latitude, currentLocation.coordinate.longitude] forKey:@"our_position"];
             NSLog(@"OUR POSITION: %@", warnData[@"our_position"]);
@@ -293,7 +358,7 @@ Boolean checkingLocation = NO;
     [self stopLocationManager];
 }
 
-- (void) showLocalNotification:(NSString *)title body:(NSString *)body type:(NSString *)type
+- (void) showLocalNotification:(NSString *)title body:(NSString *)body type:(NSString *)type userInfo:(NSDictionary *)userInfo
 {
     if (![self getLoggedIn]){
         NSLog(@"Not logged in");
@@ -320,18 +385,54 @@ Boolean checkingLocation = NO;
     if (lc != nil && title != nil){
         lc.alertTitle = title;
         lc.alertBody = body;
+        lc.userInfo = userInfo;
         //lc.timeZone = [NSTimeZone defaultTimeZone];
         lc.fireDate = [NSDate dateWithTimeIntervalSinceNow:5];
         //lc.applicationIconBadgeNumber = [[UIApplication sharedApplication] applicationIconBadgeNumber] + 1;
         /*if ([type isEqualToString:TYPE_WARNING]){
             lc.repeatInterval = kCFCalendarUnitSecond;
         }*/
+        [self replaceNotificationIfNeeded:userInfo[@"notificationId"]];
         [[UIApplication sharedApplication] scheduleLocalNotification:lc];
     }
     else{
         NSLog(@"showLocalNotification: not valid");
     }
 //#endif
+}
+
+- (void)replaceNotificationIfNeeded:(NSString *)key
+{
+
+    //UILocalNotification *notifToCancel=nil;
+    for(UILocalNotification *aNotif in [[UIApplication sharedApplication] scheduledLocalNotifications])
+    {
+        //NSLog(@"is repeated? %@", key);
+        if ([[aNotif.userInfo objectForKey:@"notificationId"] isEqualToString:key]){
+            NSLog(@"Canceling notification with key, remote: %@ - local: %@", key, [aNotif.userInfo objectForKey:@"notificationId"]);
+            [[UIApplication sharedApplication] cancelLocalNotification:aNotif];
+            return;
+        }
+        
+        NSLog(@"notification not repeated");
+    }
+}
+
+- (void)dismissNotificationByTimestamp:(NSString *)timestamp
+{
+    
+    //UILocalNotification *notifToCancel=nil;
+    for(UILocalNotification *aNotif in [[UIApplication sharedApplication] scheduledLocalNotifications])
+    {
+        //NSLog(@"is repeated? %@", timestamp);
+        if ([[aNotif.userInfo objectForKey:@"timestamp"] isEqualToString:timestamp]){
+            NSLog(@"Canceling notification with timestamp, remote: %@ - local: %@", timestamp, [aNotif.userInfo objectForKey:@"timestamp"]);
+            [[UIApplication sharedApplication] cancelLocalNotification:aNotif];
+            return;
+        }
+        
+        //NSLog(@"notification not found: %@", timestamp);
+    }
 }
 
 @end

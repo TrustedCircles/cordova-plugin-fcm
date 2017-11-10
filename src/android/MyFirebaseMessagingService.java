@@ -93,10 +93,15 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         }
 
         Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
-
+	
         boolean isLoggedIn = FCMPlugin.isLoggedIn(this);
+        // TODO: enable this
+        /*if (isLoggedIn){
+            Log.d(TAG, "==> Not logged in");
+            return;
+        }*/
         String uid = FCMPlugin.getPreference(this, "uid");
-
+		
         final Map<String, Object> data = new HashMap<String, Object>();
         data.put("wasTapped", false);
         for (String key : remoteMessage.getData().keySet()) {
@@ -110,7 +115,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         final Object fuid = data.get(FCMPlugin.FIELD_FUID);
         final Object timestamp = data.get(FCMPlugin.FIELD_TIMESTAMP);
         Log.d(TAG, "\tisLoggedIn(): " + isLoggedIn + " - uid: " + uid + " fuid: " + (fuid != null ? fuid.toString() : "<none>"));
-
+        
         if( remoteMessage.getNotification() != null){
             Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
             Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
@@ -120,11 +125,16 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                 FCMPlugin.sendPushPayload( mContext, data );
                 return;
             }
+
+            if (fuid.toString().equals(uid)){
+                Log.d(TAG, "==> !! notification of our own UID: " + fuid);
+                return;
+            }
         }
 
         if (type != null && (type.toString().equals( FCMPlugin.TYPE_WARNING ) ||
                     type.toString().equals( FCMPlugin.TYPE_FINISHED_WARNING ))){
-            String rwarns = FCMPlugin.getPreference(this, "receive_warnings");
+            String rwarns = FCMPlugin.getPreference(this, FCMPlugin.KEY_PREF_RECEIVE_WARNINGS);
             if (rwarns != null && rwarns.equals("false")){
                 Log.d(TAG, "\tWARN: User doesnt want to receive warnings: " + rwarns);
                 return;
@@ -158,6 +168,12 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
                 // TODO: save warning to sharedprefs
 
                 if (elapsed_time < mWarningTimeout){
+                    try{
+                        String warns_pref = FCMPlugin.getPreference(this, FCMPlugin.KEY_PREF_WARNINGS_TOTAL);
+                        FCMPlugin.setPreference(FCMPlugin.KEY_PREF_WARNINGS_TOTAL, (warns_pref != null) ? "" + ((Integer.parseInt(warns_pref)) + 1) : "" + 0);
+                    }
+                    catch(Exception e){}
+
                     Log.d(TAG, "WARNING time valid");
                     // add data to list if it's not already added
                     if (!removeWarning){

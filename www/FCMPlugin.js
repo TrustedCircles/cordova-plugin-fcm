@@ -21,7 +21,6 @@ FCMPlugin.prototype.onTokenRefresh = function( callback ){
 
 FCMPlugin.prototype.onTokenRefreshReceived = function(token){
     console.log("Received token refresh");
-    console.log(token);
 }
     
 FCMPlugin.prototype.getGServicesStatus = function( success, error ){
@@ -34,6 +33,9 @@ FCMPlugin.prototype.setLoggedIn = function( uid, status, result ){
 // SET PREFERENCE
 FCMPlugin.prototype.setPreference = function( key, value, result ){
 	exec(result, result, "FCMPlugin", 'setPreference', [key, value]);
+}
+FCMPlugin.prototype.getPreference = function( key, success, error ){
+	exec(success, error, "FCMPlugin", 'getPreference', [key]);
 }
 // SUBSCRIBE TO TOPIC //
 FCMPlugin.prototype.subscribeToTopic = function( topic, success, error ){
